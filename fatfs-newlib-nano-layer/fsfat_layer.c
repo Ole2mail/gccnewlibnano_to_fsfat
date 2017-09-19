@@ -31,10 +31,8 @@ USA
 #include "fsfat_layer.h"
 #include "typedefs.h"
 #include "dsregs.h"
-#include "utils.h"
 #include "devoptab_devices.h"
 #include "console.h"
-#include "gui.h"
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -432,7 +430,10 @@ void fill_fd_dir(int fd, DIR *fp, int flags, const FILINFO *fno)	//(FileDescript
     pfd->dirPtr = fp;
 }
 
-//called from fill_fd_dir && fill_fd_fil
+//called from :
+	//fill_fd_dir && fill_fd_fil
+	//stat (newlib implementation)
+	
 void fill_fd(struct fd *pfd, int flags, const FILINFO *fno)
 {
     pfd->isatty = 0;

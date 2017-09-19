@@ -22,7 +22,6 @@ USA
 
 #include "devoptab_devices.h"
 #include "console.h"
-#include "gui.h"
 #include "dsregs.h"
 #include "typedefs.h"
 #include "console.h"
@@ -40,7 +39,6 @@ USA
 #include "posix_hook_shared.h"
 
 #include "file.h"
-#include "utils.h"
 
 
 //device name for stdin driver descriptor (max devoptab_fname_size size)

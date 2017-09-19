@@ -34,8 +34,6 @@ USA
 #include "sys/stat.h"
 #include "dirent.h"
 #include "console.h"
-#include "gui.h"
-#include "utils.h"
 #include "file.h"
 #include "fsfat_layer.h"
 #include "dsregs_asm.h"
