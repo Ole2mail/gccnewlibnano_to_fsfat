@@ -35,128 +35,93 @@ USA
 #include "file.h"
 #include "fsfat_layer.h"
 
+#include <stdio.h>
+#include <string.h>
+#include <stdarg.h>
+#include <ctype.h>
+#include <stdlib.h>
+
+#include <_ansi.h>
+#include <reent.h>
+
+
 //Notes:
 //	- 	Before you get confused, the layer order is: POSIX file operations-> newlib POSIX fd assign-> devoptab filesystem -> fsfat_layer (n file descriptors for each file op) -> fsfat driver -> dldi.
 //		So we can have a portable/compatible filesystem with multiple file operations.
 //
 //	-	Newlib nano dictates to override reentrant weak functions, overriding non reentrant is undefined behaviour.
 
-int _fork_r ( struct _reent *ptr )
+//required:
+
+int fork()
 {
-   /* return "not supported" */
-    ptr->_errno = ENOTSUP;
-  return -1;
+	return -1;
 }
 
-
-void *_sbrk_r (struct _reent *ptr, int nbytes){
-	//Coto: own implementation, libc's own malloc implementation does not like it.
-	//but helps as standalone sbrk implementation except it will always alloc in linear way and not malloc/free (requires keeping track of pointers)
-
-	#ifdef own_allocator
-	int retcode = calc_heap(alloc);
-	void * retptr = (void *)alloc_failed;
-	switch(retcode){
-		case(0):{
-			//ok
-			retptr = this_heap_ptr;
-		}
-		break;
-		//error handling code
-		case(-1):{
-			
-		}
-		break;
-	}
-	
-	return retptr;
-	#endif
-	
-	//Standard newlib implementation
-	#ifndef own_allocator
-
-	static sint8 *heap_end;
-	sint8 *prev_heap_end;
-
-	if (heap_end == NULL)
-		heap_end = (sint8*)get_lma_libend();
-
-	prev_heap_end = heap_end;
-
-	if (heap_end + nbytes > (sint8*)get_lma_ewramend())
-	{
-		//errno = ENOMEM;
-		return (void *) -1;
-	}
-
-	heap_end += nbytes;
-
-	return prev_heap_end;
-	#endif
+//C++ requires this
+void _exit (int status)
+{
+	//clrscr();
+	//printf("C++ abort()!");
+	//printf("End.");
+	//for (;;) { }
 }
+
+int _kill (pid_t pid, int sig){
+}
+
+pid_t _getpid (void){
+}
+//C++ requires this end
+
+
+
+
 
 //read (get struct FD index from FILE * handle)
-_ssize_t _read_r ( struct _reent *ptr, int fd, void *buf, size_t cnt ) 
-{
+
+//ok _read_r reentrant called
+_ssize_t _read_r ( struct _reent *ptr, int fd, void *buf, size_t cnt ){
+	
 	//Conversion here 
 	struct fd * fdinst = fd_struct_get(fd);
 	
 	if( (fdinst != NULL) && ((sint32)fdinst->fd_posix != (sint32)structfd_posixFileDescrdefault)  ) {
-		return (_ssize_t)devoptab_list[fdinst->fd_posix]->read_r( ptr, fdinst->cur_entry.d_ino, buf, cnt );
+		return (_ssize_t)devoptab_list[fdinst->fd_posix]->read_r( NULL, fdinst->cur_entry.d_ino, buf, cnt );
+	}
+	
+	return -1;
+}
+//ok _write_r reentrant called
+//write (get struct FD index from FILE * handle)
+_ssize_t _write_r ( struct _reent *ptr, int fd, const void *buf, size_t cnt ){
+	
+	//Conversion here 
+	struct fd * fdinst = fd_struct_get(fd);
+	
+	if( (fdinst != NULL) && ((sint32)fdinst->fd_posix != (sint32)structfd_posixFileDescrdefault)  ) {
+		return (_ssize_t)devoptab_list[fdinst->fd_posix]->write_r( NULL, fdinst->cur_entry.d_ino, buf, cnt );
 	}
 	
 	return -1;
 }
 
-//write (get struct FD index from FILE * handle)
-_ssize_t _write_r ( struct _reent *ptr, int fd, const void *buf, size_t cnt )	
-{
-	//Conversion here 
-	struct fd * fdinst = fd_struct_get(fd);
-	
-	if( (fdinst != NULL) && ((sint32)fdinst->fd_posix != (sint32)structfd_posixFileDescrdefault)  ) {
-		return (_ssize_t)devoptab_list[fdinst->fd_posix]->write_r( ptr, fdinst->cur_entry.d_ino, buf, cnt );
-	}
-	
-	return -1;
+int _open_r ( struct _reent *ptr, const sint8 *file, int flags, int mode ){	
+	return open_fs(file, flags, mode );	//ok reentrant open(); calls this
 }
+
 
 //POSIX Logic: hook devoptab descriptor into devoptab functions
 
 //allocates a new struct fd index with either DIR or FIL structure allocated
-int _open_r ( struct _reent *ptr, const sint8 *file, int flags, int mode )
-{
-	sint8 **tokens;
-	int count = 0, i = 0;
-	volatile sint8 str[256];	//file safe buf
-	memcpy ( (uint8*)str, (uint8*)file, 256);
-
-	count = split ((const sint8*)str, '/', &tokens);	
-	volatile sint8 token_str[64];
-	
-	sint32 countPosixFDescOpen = open_posix_filedescriptor_devices() + 1;
-	/* search for "file:/" in "file:/folder1/folder.../file.test" in dotab_list[].name */
-	for (i = 0; i < countPosixFDescOpen ; i++){
-		if(count > 0){
-			sprintf((sint8*)token_str,"%s/",tokens[0]);	//format properly
-			if (strcmp((sint8*)token_str,devoptab_list[i]->name) == 0)
-			{
-				return devoptab_list[i]->open_r( ptr, file, flags, mode ); //returns / allocates a new struct fd index with either DIR or FIL structure allocated
-			}
-		}
-	}
-
-	ptr->_errno = ENODEV;
-	return -1;
-}
-
+//not overriden, we force the call from fd_close
 int _close_r ( struct _reent *ptr, int fd )
 {
 	//Conversion here 
 	struct fd * fdinst = fd_struct_get(fd);
 	
 	if( (fdinst != NULL) && ((sint32)fdinst->fd_posix != (sint32)structfd_posixFileDescrdefault)  ) {
-		return (_ssize_t)devoptab_list[fdinst->fd_posix]->close_r( ptr, fdinst->cur_entry.d_ino );
+		return (_ssize_t)devoptab_list[fdinst->fd_posix]->close_r( NULL, fdinst->cur_entry.d_ino );
 	}
 	
 	return -1;
@@ -167,51 +132,26 @@ int _close_r ( struct _reent *ptr, int fd )
  isatty
  Query whether output stream is a terminal.
  */
-int _isatty (int   file)
+int _isatty(int file)
 {
-  return  1;
+	return  1;
+}	// _isatty()
 
-}       /* _isatty () */
+int _end(int file)
+{
+	return  1;
+}	// _isatty()
 
-//don't care for toolchain printf/iprintf, just override this so it's compatible with SnemulDS framebuffer console render.
-int _vfprintf_r(struct _reent *reent, FILE *fp,const sint8 *fmt, va_list list){
-	
-	#ifdef ARM7
-	volatile uint8 g_printfbuf[100];
-	#endif
-	
-	//merge any "..." special arguments where sint8 * ftm requires , store into g_printfbuf
-	vsnprintf ((sint8*)g_printfbuf, 64, fmt, list);
-	
-	#ifdef ARM7
-	//redirect: todo
-	#endif
-	
-	#ifdef ARM9
-	// FIXME
-	t_GUIZone zone;
-	zone.x1 = 0; zone.y1 = 0; zone.x2 = 256; zone.y2 = 192;
-	zone.font = &trebuchet_9_font;
-	GUI_drawText(&zone, 0, GUI.printfy, 255, (sint8*)g_printfbuf);
-	GUI.printfy += GUI_getFontHeight(&zone);
-	#endif
-	
-	return (strlen((sint8*)&g_printfbuf[0]));
-	
-}
 
-int _vfiprintf_r(struct _reent *reent, FILE *fp,const sint8 *fmt, va_list list){
-	return _vfprintf_r(reent, fp,fmt, list);
-}
 
 
 //	-	All below high level posix calls for FSFAT access must use the function getfatfsPath("file_or_dir_path") for file (dldi sd) handling
 
-_off_t _lseek_r(struct _reent *ptr,int fd, _off_t offset, int whence )		//(FileDescriptor :struct fd index)
-{
-	return fatfs_lseek(fd, offset, whence);
+_off_t _lseek_r(struct _reent *ptr,int fd, _off_t offset, int whence ){	//(FileDescriptor :struct fd index)
+	return fatfs_lseek(fd, offset, whence);	
 }
 
+//this copies stat from internal struct fd to external code
 int _fstat_r ( struct _reent *_r, int fd, struct stat *buf )	//(FileDescriptor :struct fd index)
 {
     int ret;
@@ -326,15 +266,34 @@ int _gettimeofday(struct timeval *ptimeval,void *ptimezone){
 }
 
 
+int open_fs(const sint8 *file, int flags, int mode ){
+	
+	sint8 **tokens;
+	int count = 0, i = 0;
+	volatile sint8 str[256];	//file safe buf
+	memcpy ( (uint8*)str, (uint8*)file, 256);
 
+	count = split ((const sint8*)str, '/', &tokens);	
+	volatile sint8 token_str[64];
+	
+	sint32 countPosixFDescOpen = open_posix_filedescriptor_devices() + 1;
+	/* search for "file:/" in "file:/folder1/folder.../file.test" in dotab_list[].name */
+	for (i = 0; i < countPosixFDescOpen ; i++){
+		if(count > 0){
+			sprintf((sint8*)token_str,"%s/",tokens[0]);	//format properly
+			if (strcmp((sint8*)token_str,devoptab_list[i]->name) == 0)
+			{
+				return devoptab_list[i]->open_r( NULL, file, flags, mode ); //returns / allocates a new struct fd index with either DIR or FIL structure allocated
+			}
+		}
+	}
 
-
-
-
+	return -1;
+}
 
 //toolchain newlib nano lib stripped buffered fwrite support.
 //so we restore POSIX file implementation. User code. 
-FILE *	fopen_fs(sint8 * filepath, sint8 * args){
+FILE *	fopen_fs(const char * filepath, sint8 * args){
 
 	sint32 posix_flags = 0;
 	
@@ -372,15 +331,22 @@ FILE *	fopen_fs(sint8 * filepath, sint8 * args){
 		posix_flags |= O_RDWR|O_CREAT|O_APPEND;
 	}
 	
-	//must be struct fd Index returned here 
-	sint32 fd = open(filepath, posix_flags);	//returns / allocates a new struct fd index with either DIR or FIL structure allocated
+	//must be struct fd Index returned here
+	sint32 fd = open(filepath, posix_flags,0);	//returns / allocates a new struct fd index with either DIR or FIL structure allocated
 	
 	if (fd < 0)
 	{
 		return NULL;	//return NULL filehandle
 	}
 	
-	return fdopen(fd,args);	//Use "fdopen()" for struct fd index ->FILE handle conversion
+	FILE * FRET = fdopen(fd,args);	//Use "fdopen()" for struct fd index ->FILE handle conversion
+	/*
+	//assign the struct fd here
+	int structFD = fileno(FRET);
+	struct fd * fdinst = fd_struct_get(structFD);
+	fdinst->cur_entry.d_ino = structFD;
+	*/
+	return FRET;
 }
 
 size_t	fread_fs(_PTR buf, size_t blocksize, size_t readsize, FILE * fileInst){
@@ -395,7 +361,7 @@ size_t fwrite_fs (_PTR buf, size_t blocksize, size_t readsize, FILE * fileInst){
 
 int	fclose_fs(FILE * fileInst){
 	sint32 fd = fileno(fileInst);
-	return close(fd);
+	return _close_r(NULL,fd);	//no reentrancy so we don't care. Close handle
 }
 
 int	fseek_fs(FILE *f, long offset, int whence){
@@ -408,5 +374,109 @@ long ftell_fs (FILE * fileInst){
 	return fatfs_lseek(fd, 0, SEEK_CUR);
 }
 
+int fputs_fs(const char * s , FILE * fileInst ){
+	int length = strlen(s);
+	int wlen = 0;
+	int res;
+	
+	sint32 fd = fileno(fileInst);
+	
+	
+	wlen = write(fd, s, (sint32)length);	//returns written size from buf to file
+	wlen += write(fd, "\n", 1);	//returns written size from buf to file 
+
+	if (wlen == (length+1))
+	{
+		res = 0;
+	}
+	else
+	{
+		res = 0;	/* EOF */
+	}
+
+	return res;
+}
+
+int fputc_fs(int c, FILE * fileInst){
+	char ch = (char) c;
+	sint32 fd = fileno(fileInst);
+	if (write(fd, &ch, 1) != 1){
+		c = 0;	/*EOF*/
+	}
+	return c;
+}
+
+int putc_fs(int c, FILE * fileInst){
+	return fputc_fs(c,fileInst);
+}
+
+int fprintf_fs (FILE *stream, const char *format, ...)
+{
+	va_list arg;
+	volatile sint8 g_printfbuf[512];
+	va_start (arg, format);
+	vsnprintf((sint8*)g_printfbuf, 100, format, arg);
+	va_end (arg);
+	
+	return fwrite_fs((char*)g_printfbuf, 1, strlen((char*)g_printfbuf), stream);
+}
+
+
+int fgetc_fs(FILE *fp)
+{
+	unsigned char ch;
+    return (fread_fs(&ch, 1, 1, fp) == 1) ? (int)ch : 0; /* EOF */
+}
+
+
+
+char *fgets_fs(char *s, int n, FILE * f)
+{
+    int ch;
+    char *p = s;
+
+    while (n > 1) {
+		ch = fgetc_fs(f);
+		if (ch == 0) {	/*EOF*/
+			*p = '\0';
+			return (p == s) ? NULL : s;
+		}
+		*p++ = ch;
+		if (ch == '\n'){
+			break;
+		}
+		n--;
+    }
+    if (n){
+		*p = '\0';
+	}
+    return s;
+}
+
+int feof_fs(FILE * stream)
+{
+	int offset = -1;
+	sint32 fd = fileno(stream);
+	struct fd * fdinst = fd_struct_get(fd);
+	offset = ftell_fs(stream);
+	if(fdinst->stat.st_size <= offset){
+		stream->_flags &= ~_EOF;
+	}
+	else{
+		stream->_flags |= _EOF;
+		offset = 0;
+	}
+	
+	return offset;
+}
+
+//stub
+int ferror_fs(FILE * stream){
+	if(!stream){
+		return 1;
+	}
+	
+	return 0;
+}
 
 #endif

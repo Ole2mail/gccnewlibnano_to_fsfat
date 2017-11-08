@@ -90,10 +90,9 @@ extern "C" {
 
 extern FATFS dldiFs;
 
-/* Macro definitions */
-
 /* Function prototypes */
 
+extern int		FS_init();
 extern int fatfs_init();
 extern int fatfs_write (int fd, sint8 *ptr, int len);
 extern int fatfs_read (int fd, sint8 *ptr, int len);
@@ -117,7 +116,7 @@ extern int fatfs_open(const sint8 *pathname, int flags);
 extern off_t fatfs_lseek(int fd, off_t offset, int whence );
 extern int fatfs_unlink(const sint8 *path);
 extern int fatfs_link(const sint8 *path1, const sint8 *path2);
-extern int fatfs_rename(const sint8 *old, const sint8 *new);
+extern int fatfs_rename(const sint8 *oldpathfile, const sint8 *newpathfile);
 extern int fatfs_fsync(int fd);
 extern int fatfs_stat(const sint8 *path, struct stat *buf);
 extern int fatfs_mkdir(const sint8 *path, mode_t mode);
@@ -138,6 +137,15 @@ extern void fatfs_seekdir(DIR *dirp, long loc);
 
 extern sint8 * getfatfsPath(sint8 * filename);
 extern volatile sint8 charbuf[NAME_MAX+1];
+
+extern DWORD clust2sect (  /* !=0:Sector number, 0:Failed (invalid cluster#) */
+    FATFS* fs,      /* File system object */
+    DWORD clst      /* Cluster# to be converted */
+);
+
+extern sint32 getStructFDFirstSector(struct fd *f);
+extern sint32 getDiskClusterSize();
+extern sint32 getDiskSectorSize();
 
 #ifdef __cplusplus
 }

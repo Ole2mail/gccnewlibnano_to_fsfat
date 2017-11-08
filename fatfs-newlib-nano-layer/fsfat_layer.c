@@ -45,6 +45,12 @@ FATFS dldiFs;
 
 /* functions */
 
+//For initializing Filesystem
+int		FS_init()
+{
+	return fatfs_init();
+}
+
 //converts a "folder/folder.../file.fil" into a proper filesystem fullpath
 volatile sint8 charbuf[NAME_MAX+1];
 sint8 * getfatfsPath(sint8 * filename){
@@ -332,6 +338,9 @@ int fatfs_close (int structFDIndex)
 		(result == FR_DISK_ERR)		//create file (fwrite + w): file didn't exist before open(); thus file descriptor didn't have any data of sectors to compare with. Exception expected
 		)
         {
+			//struct stat buf;	//flush stat
+			memset (&pfd->stat, 0, sizeof(pfd->stat));
+			
 			fatfs_free(pfd);
 			FileHandleFree(pfd->cur_entry.d_ino);	//deallocates a file descriptor index that is struct fd
             ret = 0;
@@ -999,7 +1008,13 @@ int fatfs_readdir_r(
 				topsize = (sint32)(NAME_MAX+1);
 			}
 			strncpy((sint8*)entry->d_name, (sint8*)fno.fname, topsize);
+			/*
+			printf("filesize detected:%d",topsize);
+			printf("sizeof:entry->d_name:%d",sizeof(entry->d_name));
+			printf("sizeof:entry->d_name:%s",(char*)entry->d_name);
 			
+			while(1);
+			*/	//parsed correctly
             *result = entry;
         }
     }
@@ -1092,4 +1107,50 @@ void fatfs_seekdir(DIR *dirp, long loc)
 int fatfs_init()
 {
     return (f_mount(&dldiFs, "0:", 1));
+}
+
+
+
+/*-----------------------------------------------------------------------*/
+/* Get sector# from cluster#                                             */
+/*-----------------------------------------------------------------------*/
+/* Hidden API for hacks and disk tools */
+ 
+DWORD clust2sect (  /* !=0:Sector number, 0:Failed (invalid cluster#) */
+    FATFS* fs,      /* File system object */
+    DWORD clst      /* Cluster# to be converted */
+)
+{
+    clst -= 2;
+    if (clst >= fs->n_fatent - 2) return 0;       /* Invalid cluster# */
+    return clst * fs->csize + fs->database;
+}
+
+//returns the First Sector for a given file opened:
+//returns -1 if the file was not open or not a file (directory or fsfat error)
+//	struct File Descriptor (FILE * opened through fopen_fs() -> then converted to int32 from fileno())
+sint32 getStructFDFirstSector(struct fd *f){
+	if(f->filPtr){
+		return clust2sect(f->filPtr->obj.fs, f->filPtr->obj.sclust);  /* Return file start sector */
+	}
+	else{
+		return -1;
+	}
+}
+
+sint32 getDiskClusterSize(){
+	return(sint32)(dldiFs.csize);
+}
+
+sint32 getDiskSectorSize(){
+	int diskSectorSize = 0;
+	if(FF_MAX_SS == FF_MIN_SS){
+		diskSectorSize = (int)FF_MIN_SS;
+	}
+	else{
+		#if (FF_MAX_SS != FF_MIN_SS)
+		diskSectorSize = dldiFs.ssize;	//when fsfat sectorsize is variable, by default its 512
+		#endif
+	}
+	return diskSectorSize;
 }
