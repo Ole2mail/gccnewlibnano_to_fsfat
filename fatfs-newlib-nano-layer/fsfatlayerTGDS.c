@@ -27,18 +27,18 @@ USA
 #include <limits.h>
 #include <fcntl.h>
 #include <dirent.h>
-#include "file.h"
-#include "fsfat_layer.h"
-#include "typedefs.h"
+#include "fileHandleTGDS.h"
+#include "fsfatlayerTGDS.h"
+#include "typedefsTGDS.h"
 #include "dsregs.h"
 #include "devoptab_devices.h"
-#include "console.h"
+#include "consoleTGDS.h"
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <time.h>
-#include "posix_hook_shared.h"
+#include "posixHandleTGDS.h"
 
 //fatfs
 FATFS dldiFs;
@@ -423,19 +423,31 @@ void fill_stat(const FILINFO *fno, struct stat *out)
 
 
 //update struct fd with new FIL
-void fill_fd_fil(int fd, FIL *fp, int flags, const FILINFO *fno)	//(FileDescriptor :struct fd index)
+void fill_fd_fil(int fd, FIL *fp, int flags, const FILINFO *fno, char * fullFilePath)	//(FileDescriptor :struct fd index)
 {
-    struct fd *pfd = fd_struct_get(fd);
-    fill_fd(pfd, flags, fno);
-    pfd->filPtr = fp;
+    struct fd * fdinst = fd_struct_get(fd);
+    fill_fd(fdinst, flags, fno);
+    fdinst->filPtr = fp;
+	//copy full file path (posix <- fsfat)
+	int topsize = strlen(fullFilePath)+1;
+	if((sint32)topsize > (sint32)(NAME_MAX+1)){
+		topsize = (sint32)(NAME_MAX+1);
+	}
+	strncpy((sint8*)fdinst->fd_name, (sint8*)fullFilePath, topsize);
 }
 
 //update struct fd with new DIR
-void fill_fd_dir(int fd, DIR *fp, int flags, const FILINFO *fno)	//(FileDescriptor :struct fd index)
+void fill_fd_dir(int fd, DIR *fp, int flags, const FILINFO *fno, char * fullFilePath)	//(FileDescriptor :struct fd index)
 {
-    struct fd *pfd = fd_struct_get(fd);
-	fill_fd(pfd, flags, fno);
-    pfd->dirPtr = fp;
+    struct fd *fdinst = fd_struct_get(fd);
+	fill_fd(fdinst, flags, fno);
+    fdinst->dirPtr = fp;
+	//copy full directory path (posix <- fsfat)
+	int topsize = strlen(fullFilePath)+1;
+	if((sint32)topsize > (sint32)(NAME_MAX+1)){
+		topsize = (sint32)(NAME_MAX+1);
+	}
+	strncpy(fdinst->fd_name, fullFilePath, topsize);
 }
 
 //called from :
@@ -477,7 +489,7 @@ int fatfs_open_file(const sint8 *pathname, int flags, const FILINFO *fno)
             fno = &fno_after;			
 			if (result == FR_OK)
 			{
-				fill_fd_fil(fdinst->cur_entry.d_ino, fdinst->filPtr, flags, fno);
+				fill_fd_fil(fdinst->cur_entry.d_ino, fdinst->filPtr, flags, fno, (char*)pathname);
 			}
 			else
 			{
@@ -514,7 +526,7 @@ int fatfs_open_dir(const sint8 *pathname, int flags, const FILINFO *fno)
 		
         if (result == FR_OK)
         {
-			fill_fd_dir(fdret, fdinst->dirPtr, flags, fno);
+			fill_fd_dir(fdret, fdinst->dirPtr, flags, fno, (char*)pathname);
         }
         else
         {
@@ -976,7 +988,6 @@ int fatfs_readdir_r(
 	
 	int fd = getInternalFileDescriptorFromDIR(dirp);
 	struct fd * fdinst = fd_struct_get(fd);
-	
     if (!S_ISDIR(fdinst->stat.st_mode))
 	{
         errno = EBADF;
@@ -1007,20 +1018,13 @@ int fatfs_readdir_r(
 			//fill dir/file stats
 			fdinst->loc++;
 			
-			//d_name for dir or file (posix <- fsfat)
+			//d_name : dir or file name. NOT full path (posix <- fsfat)
 			int topsize = strlen(fno.fname)+1;
 			if((sint32)topsize > (sint32)(NAME_MAX+1)){
 				topsize = (sint32)(NAME_MAX+1);
 			}
 			strncpy((sint8*)entry->d_name, (sint8*)fno.fname, topsize);
-			/*
-			printf("filesize detected:%d",topsize);
-			printf("sizeof:entry->d_name:%d",sizeof(entry->d_name));
-			printf("sizeof:entry->d_name:%s",(char*)entry->d_name);
-			
-			while(1);
-			*/	//parsed correctly
-            *result = entry;
+			*result = entry;
         }
     }
 

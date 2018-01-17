@@ -27,15 +27,14 @@ USA
 #include <errno.h>
 #include <stdint.h>
 #include <string.h>
-#include "file.h"
+#include "fileHandleTGDS.h"
 #include "limits.h"
 
 #include "errno.h"
 #include "sys/stat.h"
 #include "dirent.h"
-#include "console.h"
-#include "file.h"
-#include "fsfat_layer.h"
+#include "consoleTGDS.h"
+#include "fsfatlayerTGDS.h"
 #include "dsregs_asm.h"
 
 volatile struct fd files[OPEN_MAX] __attribute__ ((aligned (4)));	//has file/dir descriptors and pointers
