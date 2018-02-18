@@ -39,6 +39,8 @@ USA
 #include <stdarg.h>
 #include <time.h>
 #include "posixHandleTGDS.h"
+#include "dldi.h"
+#include "clockTGDS.h"
 
 //fatfs
 FATFS dldiFs;
@@ -49,6 +51,12 @@ FATFS dldiFs;
 int		FS_init()
 {
 	return fatfs_init();
+}
+
+//For de-initializing Filesystem
+int		FS_deinit()
+{
+	return fatfs_deinit();
 }
 
 //converts a "folder/folder.../file.fil" into a proper filesystem fullpath
@@ -1125,6 +1133,10 @@ int fatfs_init()
     return (f_mount(&dldiFs, "0:", 1));
 }
 
+int fatfs_deinit(){
+	return (f_unmount("0:"));
+}
+
 
 //this copies stat from internal struct fd to external code
 int _fstat_r ( struct _reent *_r, int fd, struct stat *buf )	//(FileDescriptor :struct fd index)
@@ -1272,4 +1284,10 @@ sint32 getDiskSectorSize(){
 		#endif
 	}
 	return diskSectorSize;
+}
+
+char * dldi_tryingInterface(){
+	//DS DLDI
+	struct DLDI_INTERFACE * DLDI_INTERFACEInst = dldiGet();
+	return DLDI_INTERFACEInst->friendlyName;
 }
