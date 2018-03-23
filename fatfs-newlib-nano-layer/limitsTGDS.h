@@ -20,7 +20,10 @@ USA
 #ifndef TGDSLIMITS_H
 #define TGDSLIMITS_H
 
-#define OPEN_MAXTGDS 20	//Available POSIX File Descriptors
+#include <dirent.h>
+
+#define OPEN_MAXTGDS (int)(OPEN_MAXFILEDES)					//Available POSIX File Descriptors (from POSIX -> TGDS)
+#define MAX_TGDSFILENAME_LENGTH (int)(NAME_MAX)				//NAME_MAX: Max filename (POSIX) that inherits into TGDSFILENAME_LENGTH
 
 #endif
 
