@@ -20,10 +20,19 @@ USA
 #ifndef TGDSLIMITS_H
 #define TGDSLIMITS_H
 
-#include <dirent.h>
+#ifdef DIRENT_NOT_SUPPORTED
+
+/*stands for STDIN, STDOUT, STDERR*/
+#define STDIO_INDEX_RESERVED 3
 
 #define OPEN_MAXTGDS (int)(OPEN_MAXFILEDES)					//Available POSIX File Descriptors (from POSIX -> TGDS)
 #define MAX_TGDSFILENAME_LENGTH (int)(NAME_MAX)				//NAME_MAX: Max filename (POSIX) that inherits into TGDSFILENAME_LENGTH
+
+#else
+
+#include <dirent.h>
+
+#endif /*DIRENT_NOT_SUPPORTED*/
 
 #endif
 
