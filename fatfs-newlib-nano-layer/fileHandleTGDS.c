@@ -32,10 +32,12 @@ USA
 
 #include "errno.h"
 #include "sys/stat.h"
+#ifndef DIRENT_NOT_SUPPORTED
 #include "dirent.h"
-#include "consoleTGDS.h"
+#endif
+/*#include "consoleTGDS.h"*/
 #include "fsfatlayerTGDSLegacy.h"
-#include "dsregs_asm.h"
+/*#include "dsregs_asm.h"*/
 
 volatile struct fd files[OPEN_MAXTGDS] __attribute__ ((aligned (4)));	//has file/dir descriptors and pointers
 
@@ -86,12 +88,12 @@ void file_default_init(){
 }
 
 //returns / allocates a new struct fd index ,  for a certain devoptab_t so we can allocate different handles for each devoptab
-int FileHandleAlloc(struct devoptab_t * devoptabInst )
+int FileHandleAlloc( devoptab_t * devoptabInst )
 {
     int fd;
     int ret = -1;
 
-    for (fd = 0; fd < OPEN_MAXTGDS; fd++)
+    for (fd = STDIO_INDEX_RESERVED+1; fd < OPEN_MAXTGDS; fd++)
     {
         if ((sint32)files[fd].isused == (sint32)structfd_isunused)
         {

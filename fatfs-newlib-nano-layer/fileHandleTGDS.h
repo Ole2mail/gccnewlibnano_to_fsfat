@@ -27,13 +27,13 @@ USA
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#include "typedefsTGDS.h"
 #include "fsfatlayerTGDSLegacy.h"
 #include "limitsTGDS.h"
 #include "devoptab_devices.h"
-#include "posixHandleTGDS.h"
+/*#include "posixHandleTGDS.h"*/
 
 #endif
-
 
 #ifdef __cplusplus
 extern "C" {
@@ -44,7 +44,7 @@ extern volatile struct fd files[OPEN_MAXTGDS];	//file/dir attrs, pointers for be
 extern void file_default_init();
 extern struct fd *fd_struct_get(int fd);	//the fd here is the internal FD index
 
-extern int FileHandleAlloc(struct devoptab_t * devoptabInst );
+extern int FileHandleAlloc(devoptab_t * devoptabInst );
 extern int FileHandleFree(int fd);
 
 //useful for internal functions on DIR
