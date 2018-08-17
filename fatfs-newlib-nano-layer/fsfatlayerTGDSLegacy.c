@@ -28,11 +28,12 @@ USA
 #include <limits.h>
 #include "limitsTGDS.h"
 #include <fcntl.h>
-#ifndef DIRENT_NOT_SUPPORTED
+#ifdef DIRENT_NOT_SUPPORTED
+#include "typedefsTGDS.h"
+#else
 #include <dirent.h>
 #endif
 #include "fileHandleTGDS.h"
-#include "typedefsTGDS.h"
 /*#include "dsregs.h"*/
 #include "devoptab_devices.h"
 /*#include "consoleTGDS.h"*/
