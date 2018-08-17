@@ -35,10 +35,12 @@ USA
 #include "limitsTGDS.h"
 #include "typedefsTGDS.h"
 #include "ff.h"	//DIR struct definition. DIR dirent.h is deprecated. (implementation defined)
+#ifndef DIRENT_NOT_SUPPORTED
 #include "dirent.h"
+#endif
 
 #include "devoptab_devices.h"
-#include "posixHandleTGDS.h"
+/*#include "posixHandleTGDS.h"*/
 
 //POSIX default init values
 #define dirent_default_d_ino	(sint32)(-1)
@@ -115,11 +117,20 @@ extern "C" {
 extern FATFS dldiFs;
 
 /* Function prototypes */
+/* driveNumber stands for
+ * "0:" = RAMDISK
+ * "1:" = USBDISK
+ * "2:" = SDDISK
+ * "3:" = MMCDISK
+ * "4:" = SDSPIDISK
+ * "5:" = NANDDISK
+ * refer to the fatfs/diskio.h for the details
+ */
 extern bool FS_InitStatus;
-extern int		FS_init();
-extern int		FS_deinit();
-extern int fatfs_init();
-extern int fatfs_deinit();
+extern int		FS_init(const char *driveNumber);
+extern int		FS_deinit(const char *driveNumber);
+extern int fatfs_init(const char *driveNumber);
+extern int fatfs_deinit(const char *driveNumber);
 extern int fatfs_write (int fd, sint8 *ptr, int len);
 extern int fatfs_read (int fd, sint8 *ptr, int len);
 extern int fatfs_close (int fd);

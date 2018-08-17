@@ -28,21 +28,27 @@ USA
 #include <limits.h>
 #include "limitsTGDS.h"
 #include <fcntl.h>
+#ifndef DIRENT_NOT_SUPPORTED
 #include <dirent.h>
+#endif
 #include "fileHandleTGDS.h"
 #include "typedefsTGDS.h"
-#include "dsregs.h"
+/*#include "dsregs.h"*/
 #include "devoptab_devices.h"
-#include "consoleTGDS.h"
+/*#include "consoleTGDS.h"*/
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <time.h>
-#include "posixHandleTGDS.h"
-#include "dldi.h"
-#include "clockTGDS.h"
+/*#include "posixHandleTGDS.h"*/
+/*#include "dldi.h"*/
+/*#include "clockTGDS.h"*/
  
+/* Additional file attribute bits for internal use */
+#define AM_VOL		0x08	/* Volume label */
+#define AM_LFN		0x0F	/* LFN entry */
+#define AM_MASK		0x3F	/* Mask of defined bits */
 
 //fatfs
 FATFS dldiFs;
@@ -60,9 +66,9 @@ struct fd fdCur;
 bool FS_InitStatus = false;	//if FS_init() inited SD: true / if FS_deinit() or sd driver uninitialized: false
 
 //For initializing Filesystem
-int		FS_init()
+int		FS_init(const char *driveNumber)
 {
-	int ret = fatfs_init();
+	int ret = fatfs_init(driveNumber);
 	if (ret == 0){
 		FS_InitStatus = true;
 	}
@@ -73,9 +79,9 @@ int		FS_init()
 }
 
 //For de-initializing Filesystem
-int		FS_deinit()
+int		FS_deinit(const char *driveNumber)
 {
-	int ret = fatfs_deinit();
+	int ret = fatfs_deinit(driveNumber);
 	if (ret == 0){
 		FS_InitStatus = false;
 	}
@@ -185,7 +191,7 @@ int fatfs_fildir_alloc(int isfilordir)
 {
     int i_fil = 0;
 	
-    i_fil = FileHandleAlloc((struct devoptab_t *)&devoptab_fatfs);	//returns / allocates a new struct fd index 
+    i_fil = FileHandleAlloc((devoptab_t *)&devoptab_fatfs);	//returns / allocates a new struct fd index
     if (i_fil != -1)
     {
 		if(isfilordir == structfd_isfile){
@@ -610,7 +616,9 @@ int fatfs_open_file_or_dir(const sint8 *pathname, int flags)
 /* Use NDS RTC to update timestamps into files when certain operations require it*/
 DWORD get_fattime (void)
 {
-	struct tm * tmStruct = getTime();
+	/* TODO: implement RTC time extraction */
+	struct tm tmConstNonRTC = {0};
+	struct tm * tmStruct = &tmConstNonRTC; /*getTime();*/
     return (
             (((sint32)tmStruct->tm_year-60)<<25)
             |
@@ -813,8 +821,9 @@ int fatfs_stat(const sint8 *path, struct stat *buf)
     result = f_stat(path, &fno);
     if (result == FR_OK)
     {
-        fill_stat(&fno, buf);
-        ret = 0;
+		fill_stat(&fno, buf);
+		buf->st_ctime = fno.fdate*86400 + fno.ftime;
+		ret = 0;
     }
     else
     {
@@ -1153,13 +1162,13 @@ void fatfs_seekdir(DIR *dirp, long loc)
 }
 
 
-int fatfs_init()
+int fatfs_init(const char *driveNumber)
 {
-    return (f_mount(&dldiFs, "0:", 1));
+    return (f_mount(&dldiFs, driveNumber, 1));
 }
 
-int fatfs_deinit(){
-	return (f_unmount("0:"));
+int fatfs_deinit(const char *driveNumber){
+	return (f_unmount(driveNumber));
 }
 
 
@@ -1394,11 +1403,13 @@ sint32 getDiskSectorSize(){
 	return diskSectorSize;
 }
 
+/*
 char * dldi_tryingInterface(){
 	//DS DLDI
 	struct DLDI_INTERFACE * DLDI_INTERFACEInst = dldiGet();
 	return DLDI_INTERFACEInst->friendlyName;
 }
+*/
 
 int FileExists(char * filename){
 	int ret = -1;
