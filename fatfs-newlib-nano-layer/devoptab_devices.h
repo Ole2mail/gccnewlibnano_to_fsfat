@@ -18,17 +18,15 @@ USA
 
 */
 
-#ifdef ARM9
-
 #ifndef __devoptab_devices_h__
 #define __devoptab_devices_h__
 
-#include "posixHandleTGDS.h"
+/*#include "posixHandleTGDS.h"*/
 #include "devoptab_devices.h"
 
 #include "typedefsTGDS.h"
-#include "dsregs.h"
-#include "dsregs_asm.h"
+/*#include "dsregs.h"*/
+/*#include "dsregs_asm.h"*/
 
 #include "ff.h"
 #include "limitsTGDS.h"
@@ -47,14 +45,15 @@ extern const sint8 * stdstub_name_desc;
 //internal / external fatfs filename descriptors
 extern const sint8 * fsfat_internal_name_desc;
 
-extern const struct devoptab_t devoptab_stdin;
-extern const struct devoptab_t devoptab_stdout;
-extern const struct devoptab_t devoptab_sterr;
-extern const struct devoptab_t devoptab_fatfs;
-extern const struct devoptab_t devoptab_stub;	//initialize up to OPEN_MAXTGDS POSIX
-extern const struct devoptab_t *devoptab_list[OPEN_MAXTGDS];
+extern const  devoptab_t devoptab_stdin;
+extern const  devoptab_t devoptab_stdout;
+extern const  devoptab_t devoptab_sterr;
+extern const  devoptab_t devoptab_fatfs;
+extern const  devoptab_t devoptab_stub;	//initialize up to OPEN_MAXTGDS POSIX
+extern const  devoptab_t *devoptab_list[OPEN_MAXTGDS];
 
-extern void initdevoptab();
+void initdevoptab(const char *fsfat_name_desc);
+sint32 get_posix_fd_from_devicename(sint8 * deviceName);
 
 extern int open_r_stdin ( struct _reent *r, const sint8 *path, int flags, int mode );
 extern int close_r_stdin ( struct _reent *r, int fd );
@@ -86,7 +85,5 @@ extern sint32 open_posix_filedescriptor_devices();
 }
 #endif
 
-
-#endif
 
 #endif
